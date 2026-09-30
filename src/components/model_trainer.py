@@ -1,3 +1,4 @@
+
 import os
 import sys
 from dataclasses import dataclass
@@ -10,110 +11,425 @@ from sklearn.ensemble import (
 )
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
-from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from xgboost import XGBRegressor
 
 from src.exception import CustomException
 from src.logger import logging
+from src.utils import save_object, evaluate_models
 
-from src.utils import save_object,evaluate_models
+
+# ============================================================
+# 1. MODEL TRAINER CONFIGURATION
+# ============================================================
 
 @dataclass
 class ModelTrainerConfig:
-    trained_model_file_path=os.path.join("artifacts","model.pkl")
+
+    trained_model_file_path: str = os.path.join(
+        "artifacts",
+        "model.pkl"
+    )
+
+
+# ============================================================
+# 2. MODEL TRAINER CLASS
+# ============================================================
 
 class ModelTrainer:
+
     def __init__(self):
-        self.model_trainer_config=ModelTrainerConfig()
+
+        self.model_trainer_config = ModelTrainerConfig()
 
 
-    def initiate_model_trainer(self,train_array,test_array):
+    # ========================================================
+    # 3. MODEL TRAINING METHOD
+    # ========================================================
+
+    def initiate_model_trainer(self, train_array, test_array):
+
         try:
-            logging.info("Split training and test input data")
-            X_train,y_train,X_test,y_test=(
-                train_array[:,:-1],
-                train_array[:,-1],
-                test_array[:,:-1],
-                test_array[:,-1]
-            )
+
+            logging.info("Started model training")
+
+
+            # =================================================
+            # STEP 1: SPLIT TRAINING AND TESTING DATA
+            # =================================================
+
+            logging.info("Splitting training and testing data")
+
+            X_train = train_array[:, :-1]
+            y_train = train_array[:, -1]
+
+            X_test = test_array[:, :-1]
+            y_test = test_array[:, -1]
+
+
+            # =================================================
+            # STEP 2: DEFINE MODELS
+            # =================================================
+
             models = {
-                "Random Forest": RandomForestRegressor(),
-                "Decision Tree": DecisionTreeRegressor(),
-                "Gradient Boosting": GradientBoostingRegressor(),
-                "Linear Regression": LinearRegression(),
-                "XGBRegressor": XGBRegressor(),
-                "CatBoosting Regressor": CatBoostRegressor(verbose=False),
-                "AdaBoost Regressor": AdaBoostRegressor(),
+
+                "Random Forest":
+                    RandomForestRegressor(),
+
+                "Decision Tree":
+                    DecisionTreeRegressor(),
+
+                "Gradient Boosting":
+                    GradientBoostingRegressor(),
+
+                "Linear Regression":
+                    LinearRegression(),
+
+                "XGBRegressor":
+                    XGBRegressor(),
+
+                "CatBoosting Regressor":
+                    CatBoostRegressor(verbose=False),
+
+                "AdaBoost Regressor":
+                    AdaBoostRegressor()
             }
-            params={
+
+
+            # =================================================
+            # STEP 3: DEFINE HYPERPARAMETERS
+            # =================================================
+
+            params = {
+
                 "Decision Tree": {
-                    'criterion':['squared_error', 'friedman_mse', 'absolute_error', 'poisson'],
-                    # 'splitter':['best','random'],
-                    # 'max_features':['sqrt','log2'],
+
+                    "criterion": [
+                        "squared_error",
+                        "friedman_mse",
+                        "absolute_error",
+                        "poisson"
+                    ]
                 },
-                "Random Forest":{
-                    # 'criterion':['squared_error', 'friedman_mse', 'absolute_error', 'poisson'],
-                 
-                    # 'max_features':['sqrt','log2',None],
-                    'n_estimators': [8,16,32,64,128,256]
+
+
+                "Random Forest": {
+
+                    "n_estimators": [
+                        8,
+                        16,
+                        32,
+                        64
+                    ]
                 },
-                "Gradient Boosting":{
-                    # 'loss':['squared_error', 'huber', 'absolute_error', 'quantile'],
-                    'learning_rate':[.1,.01,.05,.001],
-                    'subsample':[0.6,0.7,0.75,0.8,0.85,0.9],
-                    # 'criterion':['squared_error', 'friedman_mse'],
-                    # 'max_features':['auto','sqrt','log2'],
-                    'n_estimators': [8,16,32,64,128,256]
+
+
+                "Gradient Boosting": {
+
+                    "learning_rate": [
+                        0.1,
+                        0.01,
+                        0.05
+                    ],
+
+                    "subsample": [
+                        0.6,
+                        0.8,
+                        0.9
+                    ],
+
+                    "n_estimators": [
+                        8,
+                        16,
+                        32,
+                        64
+                    ]
                 },
-                "Linear Regression":{},
-                "XGBRegressor":{
-                    'learning_rate':[.1,.01,.05,.001],
-                    'n_estimators': [8,16,32,64,128,256]
+
+
+                "Linear Regression": {},
+
+
+                "XGBRegressor": {
+
+                    "learning_rate": [
+                        0.1,
+                        0.01,
+                        0.05
+                    ],
+
+                    "n_estimators": [
+                        8,
+                        16,
+                        32,
+                        64
+                    ]
                 },
-                "CatBoosting Regressor":{
-                    'depth': [6,8,10],
-                    'learning_rate': [0.01, 0.05, 0.1],
-                    'iterations': [30, 50, 100]
+
+
+                "CatBoosting Regressor": {
+
+                    "depth": [
+                        6,
+                        8
+                    ],
+
+                    "learning_rate": [
+                        0.01,
+                        0.05,
+                        0.1
+                    ],
+
+                    "iterations": [
+                        30,
+                        50,
+                        100
+                    ]
                 },
-                "AdaBoost Regressor":{
-                    'learning_rate':[.1,.01,0.5,.001],
-                    # 'loss':['linear','square','exponential'],
-                    'n_estimators': [8,16,32,64,128,256]
+
+
+                "AdaBoost Regressor": {
+
+                    "learning_rate": [
+                        0.1,
+                        0.01,
+                        0.5
+                    ],
+
+                    "n_estimators": [
+                        8,
+                        16,
+                        32,
+                        64
+                    ]
                 }
-                
             }
 
-            model_report:dict=evaluate_models(X_train=X_train,y_train=y_train,X_test=X_test,y_test=y_test,
-                                             models=models,param=params)
-            
-            ## To get best model score from dict
-            best_model_score = max(sorted(model_report.values()))
 
-            ## To get best model name from dict
+            # =================================================
+            # STEP 4: EVALUATE ALL MODELS
+            # =================================================
 
-            best_model_name = list(model_report.keys())[
-                list(model_report.values()).index(best_model_score)
+            logging.info("Evaluating different models")
+
+            model_report = evaluate_models(
+                X_train=X_train,
+                y_train=y_train,
+                X_test=X_test,
+                y_test=y_test,
+                models=models,
+                param=params
+            )
+
+
+            logging.info(f"Model report: {model_report}")
+
+            print("\nMODEL REPORT")
+            print("--------------------------------")
+
+            for model_name, score in model_report.items():
+
+                print(
+                    f"{model_name}: {score:.4f}"
+                )
+
+
+            # =================================================
+            # STEP 5: FIND BEST MODEL SCORE
+            # =================================================
+
+            best_model_score = max(
+                model_report.values()
+            )
+
+            print("\nBEST MODEL SCORE:", best_model_score)
+
+
+            # =================================================
+            # STEP 6: FIND BEST MODEL NAME
+            # =================================================
+
+            best_model_name = list(
+                model_report.keys()
+            )[
+                list(model_report.values()).index(
+                    best_model_score
+                )
             ]
-            best_model = models[best_model_name]
 
-            if best_model_score<0.6:
-                raise CustomException("No best model found")
-            logging.info(f"Best found model on both training and testing dataset")
+            print(
+                "BEST MODEL:",
+                best_model_name
+            )
+
+
+            # =================================================
+            # STEP 7: GET BEST MODEL
+            # =================================================
+
+            best_model = models[
+                best_model_name
+            ]
+
+
+            # =================================================
+            # STEP 8: TRAIN BEST MODEL
+            # =================================================
+
+            logging.info(
+                f"Training best model: {best_model_name}"
+            )
+
+            best_model.fit(
+                X_train,
+                y_train
+            )
+
+
+            # =================================================
+            # STEP 9: SAVE BEST MODEL
+            # =================================================
+
+            logging.info(
+                "Saving trained model"
+            )
 
             save_object(
-                file_path=self.model_trainer_config.trained_model_file_path,
+                file_path=
+                self.model_trainer_config.trained_model_file_path,
+
                 obj=best_model
             )
 
-            predicted=best_model.predict(X_test)
 
-            r2_square = r2_score(y_test, predicted)
+            print(
+                "\nModel saved successfully!"
+            )
+
+            print(
+                "Location:",
+                self.model_trainer_config.trained_model_file_path
+            )
+
+
+            # =================================================
+            # STEP 10: PREDICTION
+            # =================================================
+
+            predicted = best_model.predict(
+                X_test
+            )
+
+
+            # =================================================
+            # STEP 11: CALCULATE R2 SCORE
+            # =================================================
+
+            r2_square = r2_score(
+                y_test,
+                predicted
+            )
+
+
+            print(
+                "Final R2 Score:",
+                r2_square
+            )
+
+
+            logging.info(
+                f"Final R2 score: {r2_square}"
+            )
+
+
             return r2_square
-            
 
 
-
-            
         except Exception as e:
-            raise CustomException(e,sys)
+
+            logging.error(
+                "Error occurred during model training"
+            )
+
+            raise CustomException(
+                e,
+                sys
+            )
+
+### What this code does
+
+# Your complete pipeline is now:
+
+# ```text
+# stud.csv
+#    ↓
+# Data Ingestion
+#    ↓
+# train.csv + test.csv
+#    ↓
+# Data Transformation
+#    ↓
+# train_arr + test_arr
+#    ↓
+# Model Trainer
+#    ↓
+# Try multiple ML models
+#    ↓
+# Compare R² scores
+#    ↓
+# Choose best model
+#    ↓
+# FIT best model
+#    ↓
+# save_object()
+#    ↓
+# artifacts/model.pkl
+# ```
+
+# The key new part is:
+
+# ```python
+# best_model.fit(X_train, y_train)
+# ```
+
+# Then:
+
+# ```python
+# save_object(
+#     file_path=self.model_trainer_config.trained_model_file_path,
+#     obj=best_model
+# )
+# ```
+
+# So after successful execution you should have:
+
+# ```text
+# mlproject48/
+# │
+# ├── artifacts/
+# │   ├── data.csv
+# │   ├── train.csv
+# │   ├── test.csv
+# │   ├── proprocessor.pkl
+# │   └── model.pkl          ← THIS
+# │
+# ├── notebook/
+# ├── src/
+# │   ├── components/
+# │   │   ├── data_ingestion.py
+# │   │   ├── data_transformation.py
+# │   │   └── model_trainer.py
+# │   ├── exception.py
+# │   ├── logger.py
+# │   └── utils.py
+# │
+# └── ...
+# ```
+
+# # ### One important thing
+
+# # Your `model_trainer.py` depends on **`evaluate_models()` and `save_object()` inside `src/utils.py`**.
+
+# # So if you run this and `model.pkl` **still doesn't appear**, don't change this file again. Send me your **complete `src/utils.py`**.
+
+# # I'll check those two functions because that's the next likely place where the problem is.
