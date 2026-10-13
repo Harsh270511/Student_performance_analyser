@@ -131,10 +131,6 @@ The app is deployed on **AWS Elastic Beanstalk**. `.ebextensions` holds the envi
 
 Contributions are welcome. Fork the repository, create a feature branch, and open a pull request.
 
-## License
-
-Add a license (for example MIT) and link it here.
-
 ## Author
 
 **Harsh** – [GitHub](https://github.com/Harsh270511)
